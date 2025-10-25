@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import emailjs from "@emailjs/browser";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
@@ -17,11 +16,11 @@ import {
 
 type Tone = "info" | "success" | "warning" | "error";
 
-// --- Ad now supports optional media (image or video/gif) ---
+// Ads now support optional media (image / gif / video)
 type Ad = {
   text?: string;
-  mediaDataUrl?: string; // data URL for preview/storage
-  mediaKind?: "image" | "video" | "gif";
+  mediaDataUrl?: string;
+  mediaKind?: "image" | "gif" | "video";
   timestamp: number;
 };
 
@@ -35,15 +34,14 @@ type Announcement = {
 };
 
 export default function App() {
-  const [notice, setNotice] = useState<{ show: boolean; text: string; tone: Tone }>({
-    show: false,
-    text: "",
-    tone: "info",
-  });
+  // simple toast
+  const [notice, setNotice] = useState<{ show: boolean; text: string; tone: Tone }>(
+    { show: false, text: "", tone: "info" }
+  );
   const notify = (text: string, tone: Tone = "info") => {
     setNotice({ show: true, text, tone });
     (notify as any)._t && clearTimeout((notify as any)._t);
-    (notify as any)._t = setTimeout(() => setNotice((s: any) => ({ ...s, show: false })), 4000);
+    (notify as any)._t = setTimeout(() => setNotice(s => ({ ...s, show: false })), 3500);
   };
 
   const [role, setRole] = useState("none");
@@ -52,11 +50,10 @@ export default function App() {
   const [agreement, setAgreement] = useState(false);
   const [auth, setAuth] = useState({ username: "", password: "" });
 
-  // --- Ads / Announcements state
   const [ads, setAds] = useState<Ad[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
-  // --- Analytics and stats
+  // analytics
   const [analytics, setAnalytics] = useState<any[]>([]);
   const [stats, setStats] = useState({
     totalPosts: 0,
@@ -65,34 +62,27 @@ export default function App() {
     interactions: 0,
   });
 
-  // --- Client post modal
+  // Client post modal
   const [showPostForm, setShowPostForm] = useState(false);
   const [postForm, setPostForm] = useState({ country: "", city: "", text: "" });
 
-  // --- Advertiser inputs
+  // Advertiser inputs
   const [adText, setAdText] = useState("");
   const [adPaid, setAdPaid] = useState(false);
-  const [adMediaUrl, setAdMediaUrl] = useState<string>(""); // preview
+  const [adMediaUrl, setAdMediaUrl] = useState("");
   const [adMediaKind, setAdMediaKind] = useState<Ad["mediaKind"]>(undefined);
 
-  useEffect(() => {
-    // Needed for report email features elsewhere in the app
-    emailjs.init({ publicKey: "ZOixa_otkIeM7vgIB" });
-  }, []);
-
-  // Restore ads and rotate every 13 hours
+  // Restore & rotate ads
   useEffect(() => {
     try {
       const stored = JSON.parse(localStorage.getItem("i2uAds") || "[]");
-      // migrate older string-only ads to new shape
-      const migrated: Ad[] = (stored as any[]).map((a) => {
-        if (a && typeof a === "object") return a;
-        return { text: String(a ?? "Advertisement"), timestamp: Date.now() } as Ad;
-      });
+      const migrated: Ad[] = (stored as any[]).map((a) =>
+        typeof a === "object" && a !== null ? a : { text: String(a ?? "Advertisement"), timestamp: Date.now() }
+      );
       setAds(migrated);
     } catch {}
     const rot = setInterval(() => {
-      setAds((prev) => {
+      setAds(prev => {
         if (!prev.length) return prev;
         const rotated = [...prev.slice(1), prev[0]];
         localStorage.setItem("i2uAds", JSON.stringify(rotated));
@@ -102,10 +92,10 @@ export default function App() {
     return () => clearInterval(rot);
   }, []);
 
-  // Cleanup expired ads (5 days)
+  // Expire ads after 5 days
   useEffect(() => {
     const now = Date.now();
-    const cleaned = ads.filter((a) => now - a.timestamp < 5 * 24 * 60 * 60 * 1000);
+    const cleaned = ads.filter(a => now - a.timestamp < 5 * 24 * 60 * 60 * 1000);
     if (cleaned.length !== ads.length) {
       setAds(cleaned);
       localStorage.setItem("i2uAds", JSON.stringify(cleaned));
@@ -114,31 +104,28 @@ export default function App() {
 
   // Restore + persist announcements
   useEffect(() => {
-    try {
-      setAnnouncements(JSON.parse(localStorage.getItem("i2uAnnouncements") || "[]"));
-    } catch {}
+    try { setAnnouncements(JSON.parse(localStorage.getItem("i2uAnnouncements") || "[]")); } catch {}
   }, []);
   useEffect(() => {
     localStorage.setItem("i2uAnnouncements", JSON.stringify(announcements));
   }, [announcements]);
 
-  // Fake analytics
+  // fake analytics
   useEffect(() => {
-    const data = Array.from({ length: 7 }).map((_, i) => ({
+    setAnalytics(Array.from({ length: 7 }).map((_, i) => ({
       day: `Day ${i + 1}`,
       posts: Math.floor(Math.random() * 10) + 1,
       ads: Math.floor(Math.random() * 5) + 1,
       interactions: Math.floor(Math.random() * 50) + 10,
-    }));
-    setAnalytics(data);
+    })));
   }, []);
 
-  // Recompute stats
+  // recompute stats
   useEffect(() => {
     setStats({
       totalPosts: announcements.length,
       totalAds: ads.length,
-      accepted: announcements.filter((a) => a.accepted).length,
+      accepted: announcements.filter(a => a.accepted).length,
       interactions: announcements.length * 5 + ads.length * 3,
     });
   }, [announcements, ads]);
@@ -149,99 +136,75 @@ export default function App() {
       return notify("Please fill all fields and accept the agreement.", "warning");
     localStorage.setItem("i2uUser", JSON.stringify(auth));
     setRegistered(true);
-    notify("Registration successful. You can now log in.", "success");
+    notify("Registration successful. Please log in.", "success");
   };
   const handleLogin = () => {
     let stored: any = {};
-    try {
-      stored = JSON.parse(localStorage.getItem("i2uUser") || "{}");
-    } catch {}
+    try { stored = JSON.parse(localStorage.getItem("i2uUser") || "{}"); } catch {}
     if (auth.username === stored.username && auth.password === stored.password) {
-      setLoggedIn(true);
-      notify("Welcome! Please choose your role.", "success");
+      setLoggedIn(true); notify("Welcome! Choose your role.", "success");
     } else notify("Invalid credentials.", "error");
   };
 
-  // Advertiser (A)
-  const handleAdPayment = () => {
+  // Advertiser
+  const handleAdPayment = (e?: React.MouseEvent) => {
+    e?.preventDefault();
     setAdPaid(true);
     notify("Simulated ad payment: $1 processed successfully.", "success");
   };
 
-  // Detect and read media file as data URL (with size/type constraints)
-  const handleAdMediaChange = async (file?: File | null) => {
+  // Upload (image ≤2MB, gif/mp4/webm ≤10MB)
+  const handleAdMediaChange = (file?: File | null) => {
     if (!file) return;
     const type = file.type.toLowerCase();
-
-    // Accept common image/video types; treat GIF as animation (gif)
-    const isImage = type.startsWith("image/") && type !== "image/gif";
     const isGif = type === "image/gif";
-    const isVideo = type.startsWith("video/"); // e.g., mp4, webm
-
-    // Size limits
-    const maxImageMb = 2;
-    const maxAnimMb = 10;
-    const mb = file.size / (1024 * 1024);
-
-    if (isImage && mb > maxImageMb) {
-      return notify(`Image too large. Max ${maxImageMb} MB.`, "warning");
-    }
-    if ((isGif || isVideo) && mb > maxAnimMb) {
-      return notify(`Animation/Video too large. Max ${maxAnimMb} MB.`, "warning");
-    }
-
+    const isImage = type.startsWith("image/") && !isGif;
+    const isVideo = type.startsWith("video/");
+    const sizeMb = file.size / (1024 * 1024);
+    if (isImage && sizeMb > 2) return notify("Image too large (max 2 MB).", "warning");
+    if ((isGif || isVideo) && sizeMb > 10) return notify("Animation/Video too large (max 10 MB).", "warning");
     const reader = new FileReader();
     reader.onload = () => {
       setAdMediaUrl(String(reader.result || ""));
       setAdMediaKind(isImage ? "image" : isGif ? "gif" : "video");
-      notify("Media loaded. Ready to post.", "success");
+      notify("Media loaded.", "success");
     };
     reader.onerror = () => notify("Failed to read file.", "error");
     reader.readAsDataURL(file);
   };
 
-  const handlePostAd = () => {
-    if (!adPaid) return notify("Please simulate payment first ($1).", "warning");
-    if (!adText.trim() && !adMediaUrl) {
-      return notify("Provide ad text and/or upload media before posting.", "warning");
+  const handlePostAd = (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    if (!adPaid) return notify("Please simulate payment first.", "warning");
+    if (!adText.trim() && !adMediaUrl) return notify("Add ad text and/or upload media.", "warning");
+    if (adText.trim().split(/\s+/).filter(Boolean).length > 30) {
+      return notify("Ad text must be 30 words or fewer.", "warning");
     }
-    // optional 30-word constraint for ad text
-    if (adText.trim()) {
-      const words = adText.trim().split(/\s+/).filter(Boolean);
-      if (words.length > 30) return notify("Ad text must be 30 words or fewer.", "warning");
-    }
-
     const newAd: Ad = {
       text: adText.trim() || undefined,
       mediaDataUrl: adMediaUrl || undefined,
       mediaKind: adMediaKind,
       timestamp: Date.now(),
     };
-
     const newAds = [newAd, ...ads].slice(0, 10);
     setAds(newAds);
     localStorage.setItem("i2uAds", JSON.stringify(newAds));
-
-    // reset ad inputs
-    setAdText("");
-    setAdPaid(false);
-    setAdMediaUrl("");
-    setAdMediaKind(undefined);
-
-    notify("Your ad has been posted and will remain for 5 days.", "success");
+    setAdText(""); setAdPaid(false); setAdMediaUrl(""); setAdMediaKind(undefined);
+    notify("Your ad is posted for 5 days.", "success");
   };
 
-  // Client (C)
-  const openClientPostForm = () => {
+  // Client
+  const openClientPostForm = (e?: React.MouseEvent) => {
+    e?.preventDefault();
     notify("Simulated payment: $1 processed successfully.", "success");
     setShowPostForm(true);
   };
-  const submitClientPost = () => {
+  const submitClientPost = (e?: React.MouseEvent) => {
+    e?.preventDefault();
     if (!postForm.country || !postForm.city || !postForm.text)
       return notify("Please fill country, city, and description.", "warning");
     const words = postForm.text.trim().split(/\s+/).filter(Boolean);
     if (words.length > 30) return notify("Announcement must be 30 words or fewer.", "warning");
-
     const item: Announcement = {
       id: Math.random().toString(36).slice(2),
       country: postForm.country.trim(),
@@ -250,86 +213,66 @@ export default function App() {
       created: Date.now(),
       accepted: false,
     };
-    setAnnouncements((prev) => [item, ...prev]);
+    setAnnouncements(prev => [item, ...prev]);
     setShowPostForm(false);
     setPostForm({ country: "", city: "", text: "" });
-    notify("Your request has been posted and is visible to Service Providers.", "success");
+    notify("Request posted and visible to CPs.", "success");
   };
 
-  // Export helpers
+  // Exports
   const exportPDF = () => {
     const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.text("i2U - With Pleasure", 14, 20);
+    doc.setFontSize(18); doc.text("i2U - With Pleasure", 14, 20);
     doc.setFontSize(12);
     doc.text(`Dashboard Report (${role})`, 14, 30);
     doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 37);
     autoTable(doc, {
-      head: [["Metric", "Value"]],
+      head: [["Metric","Value"]],
       body: [
         ["Total Posts", String(stats.totalPosts)],
         ["Total Ads", String(stats.totalAds)],
         ["Accepted Requests", String(stats.accepted)],
         ["Interactions", String(stats.interactions)],
       ],
-      startY: 45,
+      startY: 45
     });
     doc.save(`i2U_${role}_Report.pdf`);
   };
   const exportCSV = () => {
-    const headers = "Day,Posts,Ads,Interactions";
-    const rows = analytics.map((d) => `${d.day},${d.posts},${d.ads},${d.interactions}`).join("\n");
-    const blob = new Blob([headers + "\n" + rows], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `i2U_${role}_Report.csv`;
-    link.click();
+    const rows = analytics.map(d => `${d.day},${d.posts},${d.ads},${d.interactions}`).join("\n");
+    const blob = new Blob([`Day,Posts,Ads,Interactions\n${rows}`], { type: "text/csv;charset=utf-8;" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = `i2U_${role}_Report.csv`; a.click();
   };
 
-  // --- OPTIONAL ContactForm remains in code but unused (hidden) ---
-  const ContactForm = () => null; // hidden; easy to re-enable later
-
+  // Login / Register screen
   if (!registered || !loggedIn) {
     return (
       <div className="min-h-screen grid place-items-center bg-gray-50 text-foreground p-6">
         <div className="card max-w-md w-full">
           <div className="p-4">
             <h3>{registered ? "Login to i2U" : "Register for i2U"}</h3>
-            <p style={{ color: "#6b7280" }}>Access the i2U platform (English only)</p>
+            <p style={{ color: "#6b7280" }}>English only</p>
           </div>
           <div className="p-4" style={{ paddingTop: 0 }}>
-            <input
-              className="border rounded-xl p-2 w-full"
-              placeholder="Username"
-              value={auth.username}
-              onChange={(e) => setAuth({ ...auth, username: e.target.value })}
-            />
-            <div className="mt-4" />
-            <input
-              className="border rounded-xl p-2 w-full"
-              type="password"
-              placeholder="Password"
-              value={auth.password}
-              onChange={(e) => setAuth({ ...auth, password: e.target.value })}
-            />
+            <input className="border rounded-xl p-2 w-full" placeholder="Username"
+              value={auth.username} onChange={e => setAuth({ ...auth, username: e.target.value })} />
+            <div className="mt-3" />
+            <input className="border rounded-xl p-2 w-full" type="password" placeholder="Password"
+              value={auth.password} onChange={e => setAuth({ ...auth, password: e.target.value })} />
             {!registered && (
-              <label className="mt-4" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <input type="checkbox" checked={agreement} onChange={(e) => setAgreement(e.target.checked)} />
+              <label className="mt-4" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input type="checkbox" checked={agreement} onChange={e => setAgreement(e.target.checked)} />
                 <span style={{ fontSize: 14, color: "#374151" }}>
-                  I agree that interactions between Clients (C) and Service Providers (CP) are solely their legal
-                  responsibility; i2U has no liability.
+                  Interactions between Clients (C) and Service Providers (CP) are solely their legal responsibility; i2U has no liability.
                 </span>
               </label>
             )}
             <div className="mt-4" />
             {registered ? (
-              <button className="btn primary w-full" onClick={handleLogin}>
-                Login
-              </button>
+              <button type="button" className="btn primary w-full" onClick={handleLogin}>Login</button>
             ) : (
-              <button className="btn primary w-full" onClick={handleRegister}>
-                Register
-              </button>
+              <button type="button" className="btn primary w-full" onClick={handleRegister}>Register</button>
             )}
           </div>
         </div>
@@ -339,27 +282,22 @@ export default function App() {
   }
 
   // derive lists
-  const visibleAnnouncements = announcements.filter((a) => !a.accepted).slice(0, 20);
+  const visibleAnnouncements = announcements.filter(a => !a.accepted).slice(0, 20);
   const hiddenAnnouncements = announcements.filter((a, i) => !a.accepted && i >= 20);
 
   const [cpCountry, setCpCountry] = useState("");
   const [cpCity, setCpCity] = useState("");
-  const cpResults = hiddenAnnouncements.filter(
-    (a) =>
-      (cpCountry ? a.country.toLowerCase().includes(cpCountry.toLowerCase()) : true) &&
-      (cpCity ? a.city.toLowerCase().includes(cpCity.toLowerCase()) : true)
+  const cpResults = hiddenAnnouncements.filter(a =>
+    (cpCountry ? a.country.toLowerCase().includes(cpCountry.toLowerCase()) : true) &&
+    (cpCity ? a.city.toLowerCase().includes(cpCity.toLowerCase()) : true)
   );
 
   return (
     <div className="min-h-screen bg-gray-50 text-foreground">
       <header className="border-b bg-white/80" style={{ backdropFilter: "blur(6px)" }}>
         <div className="container" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h1>
-            🪸 i2U <span style={{ color: "#6b7280", fontWeight: 400 }}>With Pleasure</span>
-          </h1>
-          <button className="btn" onClick={() => { setLoggedIn(false); setRegistered(true); }}>
-            Logout
-          </button>
+          <h1>🪸 i2U <span style={{ color: "#6b7280", fontWeight: 400 }}>With Pleasure</span></h1>
+          <button type="button" className="btn" onClick={() => { setLoggedIn(false); setRegistered(true); }}>Logout</button>
         </div>
       </header>
 
@@ -370,20 +308,16 @@ export default function App() {
         <div className="card">
           <div className="p-4">
             <h3>Client Announcements (up to 20 visible)</h3>
-            <p style={{ color: "#6b7280" }}>
-              Shows Country & City with a short (≤ 30 words) description. Disappears once accepted by a CP.
-            </p>
+            <p style={{ color: "#6b7280" }}>Country • City • short description (≤ 30 words). Disappears once accepted by a CP.</p>
           </div>
           <div className="p-4" style={{ paddingTop: 0 }}>
             {visibleAnnouncements.length === 0 ? (
               <p className="text-sm opacity-70">No announcements yet.</p>
             ) : (
               <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 12 }}>
-                {visibleAnnouncements.map((a) => (
+                {visibleAnnouncements.map(a => (
                   <div key={a.id} className="border rounded-xl p-3 bg-white">
-                    <div className="text-sm font-semibold">
-                      {a.country} • {a.city}
-                    </div>
+                    <div className="text-sm font-semibold">{a.country} • {a.city}</div>
                     <div className="text-sm mt-1">{a.text}</div>
                   </div>
                 ))}
@@ -397,50 +331,29 @@ export default function App() {
       <section className="container">
         <h2>Select Your Role</h2>
         <div className="row mb-8 mt-4">
-          {["Client (C)", "Service Provider (CP)", "Advertiser (A)"].map((r) => (
-            <button key={r} className={`btn ${role === r ? "primary" : ""}`} onClick={() => setRole(r)}>
-              {r}
-            </button>
+          {["Client (C)","Service Provider (CP)","Advertiser (A)"].map(r => (
+            <button type="button" key={r} className={`btn ${role===r?'primary':''}`} onClick={() => setRole(r)}>{r}</button>
           ))}
         </div>
 
         {/* Stats */}
         <div className="grid grid-2 mt-4">
-          <div className="card p-4">
-            <h3>Total Posts</h3>
-            <p style={{ fontSize: 24, fontWeight: 700 }}>{stats.totalPosts}</p>
-          </div>
-          <div className="card p-4">
-            <h3>Total Ads</h3>
-            <p style={{ fontSize: 24, fontWeight: 700 }}>{stats.totalAds}</p>
-          </div>
-          <div className="card p-4">
-            <h3>Accepted</h3>
-            <p style={{ fontSize: 24, fontWeight: 700 }}>{stats.accepted}</p>
-          </div>
-          <div className="card p-4">
-            <h3>Interactions</h3>
-            <p style={{ fontSize: 24, fontWeight: 700 }}>{stats.interactions}</p>
-          </div>
+          <div className="card p-4"><h3>Total Posts</h3><p style={{ fontSize: 24, fontWeight: 700 }}>{stats.totalPosts}</p></div>
+          <div className="card p-4"><h3>Total Ads</h3><p style={{ fontSize: 24, fontWeight: 700 }}>{stats.totalAds}</p></div>
+          <div className="card p-4"><h3>Accepted</h3><p style={{ fontSize: 24, fontWeight: 700 }}>{stats.accepted}</p></div>
+          <div className="card p-4"><h3>Interactions</h3><p style={{ fontSize: 24, fontWeight: 700 }}>{stats.interactions}</p></div>
         </div>
 
         {/* Charts */}
         <div className="grid grid-2 mt-4">
           <div className="card">
             <div className="p-4" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3>Posts vs Ads</h3>
-              <button className="btn" onClick={exportCSV}>CSV</button>
+              <h3>Posts vs Ads</h3><button type="button" className="btn" onClick={exportCSV}>CSV</button>
             </div>
             <div className="p-4" style={{ paddingTop: 0 }}>
               <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={analytics}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="day" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="posts" name="Posts" />
-                  <Bar dataKey="ads" name="Ads" />
+                <BarChart data={analytics}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="day"/><YAxis/><Tooltip/><Legend/>
+                  <Bar dataKey="posts" name="Posts"/><Bar dataKey="ads" name="Ads"/>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -448,17 +361,12 @@ export default function App() {
 
           <div className="card">
             <div className="p-4" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3>Interaction Trends</h3>
-              <button className="btn" onClick={exportPDF}>PDF</button>
+              <h3>Interaction Trends</h3><button type="button" className="btn" onClick={exportPDF}>PDF</button>
             </div>
             <div className="p-4" style={{ paddingTop: 0 }}>
               <ResponsiveContainer width="100%" height={240}>
-                <LineChart data={analytics}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="day" />
-                  <YAxis />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="interactions" />
+                <LineChart data={analytics}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="day"/><YAxis/><Tooltip/>
+                  <Line type="monotone" dataKey="interactions"/>
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -472,7 +380,7 @@ export default function App() {
 
           {role === "Client (C)" && (
             <div className="mt-3">
-              <button className="btn primary" onClick={openClientPostForm}>
+              <button type="button" className="btn primary" onClick={openClientPostForm}>
                 Pay & Post Service Request
               </button>
             </div>
@@ -481,32 +389,18 @@ export default function App() {
           {role === "Service Provider (CP)" && (
             <div className="space-y-3 mt-3">
               <div className="grid" style={{ gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 12 }}>
-                <input
-                  className="border rounded-xl p-2"
-                  placeholder="Search by Country"
-                  value={cpCountry}
-                  onChange={(e) => setCpCountry((e.target as any).value)}
-                />
-                <input
-                  className="border rounded-xl p-2"
-                  placeholder="Search by City"
-                  value={cpCity}
-                  onChange={(e) => setCpCity((e.target as any).value)}
-                />
-                <button className="btn">Search</button>
+                <input className="border rounded-xl p-2" placeholder="Search by Country"
+                  value={cpCountry} onChange={e => setCpCountry((e.target as any).value)} />
+                <input className="border rounded-xl p-2" placeholder="Search by City"
+                  value={cpCity} onChange={e => setCpCity((e.target as any).value)} />
+                <button type="button" className="btn">Search</button>
               </div>
-              <div className="text-sm opacity-70">
-                Searching non-visible announcements (those beyond the first 20 on the homepage).
-              </div>
-              {cpResults.length === 0 ? (
-                <div className="text-sm">No results.</div>
-              ) : (
+              <div className="text-sm opacity-70">Searching non-visible announcements (beyond the first 20).</div>
+              {cpResults.length === 0 ? <div className="text-sm">No results.</div> : (
                 <div className="grid gap-2">
-                  {cpResults.map((a) => (
+                  {cpResults.map(a => (
                     <div key={a.id} className="border rounded-xl p-3 bg-white">
-                      <div className="text-sm font-semibold">
-                        {a.country} • {a.city}
-                      </div>
+                      <div className="text-sm font-semibold">{a.country} • {a.city}</div>
                       <div className="text-sm mt-1">{a.text}</div>
                     </div>
                   ))}
@@ -517,55 +411,34 @@ export default function App() {
 
           {role === "Advertiser (A)" && (
             <div className="grid gap-3 mt-3">
-              <textarea
-                className="border rounded-xl p-2"
-                placeholder="Enter ad text (max 30 words)"
-                value={adText}
-                onChange={(e) => setAdText((e.target as any).value)}
-              />
+              <textarea className="border rounded-xl p-2" placeholder="Enter ad text (max 30 words)"
+                value={adText} onChange={e => setAdText((e.target as any).value)} />
               <div className="text-xs opacity-70">
-                Optional: upload an image (PNG/JPG/GIF ≤ 2 MB) or animation/video (GIF/MP4/WebM ≤ 10 MB).
+                Optional media: PNG/JPG ≤2MB, GIF/MP4/WebM ≤10MB.
               </div>
-              <input
-                className="border rounded-xl p-2"
-                type="file"
+              <input className="border rounded-xl p-2" type="file"
                 accept="image/*,video/mp4,video/webm,image/gif"
-                onChange={(e) => handleAdMediaChange(e.target.files?.[0] || null)}
-              />
-              {/* Preview */}
+                onChange={e => handleAdMediaChange(e.target.files?.[0] || null)} />
               {adMediaUrl && (
                 <div className="border rounded-xl p-2 bg-white">
                   <div className="text-sm mb-2 opacity-70">Preview:</div>
-                  {adMediaKind === "image" && (
-                    <img src={adMediaUrl} alt="Ad preview" style={{ width: "100%", borderRadius: 12, maxHeight: 220, objectFit: "cover" }} />
-                  )}
-                  {adMediaKind === "gif" && (
-                    <img src={adMediaUrl} alt="Ad GIF" style={{ width: "100%", borderRadius: 12, maxHeight: 220, objectFit: "cover" }} />
+                  {(adMediaKind === "image" || adMediaKind === "gif") && (
+                    <img src={adMediaUrl} alt="Ad" style={{ width: "100%", borderRadius: 12, maxHeight: 220, objectFit: "cover" }} />
                   )}
                   {adMediaKind === "video" && (
-                    <video
-                      src={adMediaUrl}
-                      style={{ width: "100%", borderRadius: 12, maxHeight: 220, objectFit: "cover" }}
-                      controls
-                      playsInline
-                      muted
-                      loop
-                    />
+                    <video src={adMediaUrl} style={{ width: "100%", borderRadius: 12, maxHeight: 220, objectFit: "cover" }}
+                      controls playsInline muted loop />
                   )}
                 </div>
               )}
-
-              <div className="text-xs opacity-70">
-                Ads appear in square blocks below for 5 days and rotate every 13 hours. Only 10 are visible at a time.
-              </div>
-
+              <div className="text-xs opacity-70">Ads rotate every 13 hours. Up to 10 visible. Each ad lasts 5 days.</div>
               <div className="flex gap-2">
                 {!adPaid ? (
-                  <button className="btn" onClick={handleAdPayment}>Simulate Payment</button>
+                  <button type="button" className="btn" onClick={handleAdPayment}>Simulate Payment</button>
                 ) : (
-                  <button className="btn" onClick={() => setAdPaid(false)}>Undo Payment</button>
+                  <button type="button" className="btn" onClick={(e)=>{e.preventDefault(); setAdPaid(false);}}>Undo Payment</button>
                 )}
-                <button className="btn primary" onClick={handlePostAd} disabled={!adPaid}>
+                <button type="button" className="btn primary" onClick={handlePostAd} disabled={!adPaid}>
                   Post Advertisement
                 </button>
               </div>
@@ -589,21 +462,11 @@ export default function App() {
                 {ads.slice(0, 10).map((ad, i) => (
                   <div key={i} className="aspect-square border rounded-xl p-2 bg-white text-sm flex items-center justify-center text-center overflow-hidden">
                     {ad.mediaDataUrl ? (
-                      ad.mediaKind === "image" || ad.mediaKind === "gif" ? (
-                        <img
-                          src={ad.mediaDataUrl}
-                          alt="ad"
-                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                        />
+                      (ad.mediaKind === "image" || ad.mediaKind === "gif") ? (
+                        <img src={ad.mediaDataUrl} alt="ad" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                       ) : (
-                        <video
-                          src={ad.mediaDataUrl}
-                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                          autoPlay
-                          loop
-                          muted
-                          playsInline
-                        />
+                        <video src={ad.mediaDataUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          autoPlay loop muted playsInline />
                       )
                     ) : (
                       <span style={{ padding: 6 }}>{ad.text || "Advertisement"}</span>
@@ -616,25 +479,10 @@ export default function App() {
         </div>
       </section>
 
-      {/* Contact & Complaints — HIDDEN (kept for easy restore)
-      <section className="container" style={{ paddingBottom: 48 }}>
-        <div className="card">
-          <div className="p-4">
-            <h3>Contact & Complaints</h3>
-            <p style={{ color: "#6b7280" }}>English only. Your message will be emailed to mnemitallah@gmail.com.</p>
-          </div>
-          <div className="p-4" style={{ paddingTop: 0 }}>
-            <ContactForm />
-          </div>
-        </div>
-      </section>
-      */}
+      {/* Contact & Complaints — intentionally hidden */}
 
       <footer className="border-t text-sm text-center py-6">
-        <p>
-          By registering, you agree that all interactions between Clients (C) and Service Providers (CP) are solely
-          their legal responsibility. i2U assumes no legal liability for user actions or outcomes.
-        </p>
+        <p>By registering, you agree that all interactions between Clients (C) and Service Providers (CP) are solely their legal responsibility. i2U assumes no legal liability for user actions or outcomes.</p>
         <p className="mt-2 text-xs">IBAN: EG550003020730003711457000110</p>
         <p className="mt-2">© {new Date().getFullYear()} i2U. With Pleasure.</p>
       </footer>
@@ -645,38 +493,21 @@ export default function App() {
           <div className="bg-white rounded-2xl max-w-lg w-full shadow-xl">
             <div className="p-4 border-b flex items-center justify-between">
               <h3 className="font-semibold">Post a Service Request</h3>
-              <button className="text-sm underline" onClick={() => setShowPostForm(false)}>
-                Close
-              </button>
+              <button type="button" className="text-sm underline" onClick={() => setShowPostForm(false)}>Close</button>
             </div>
             <div className="p-4 grid gap-3">
               <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 12 }}>
-                <input
-                  className="border rounded-xl p-2"
-                  placeholder="Country"
-                  value={postForm.country}
-                  onChange={(e) => setPostForm({ ...postForm, country: (e.target as any).value })}
-                />
-                <input
-                  className="border rounded-xl p-2"
-                  placeholder="City"
-                  value={postForm.city}
-                  onChange={(e) => setPostForm({ ...postForm, city: (e.target as any).value })}
-                />
+                <input className="border rounded-xl p-2" placeholder="Country"
+                  value={postForm.country} onChange={e => setPostForm({ ...postForm, country: (e.target as any).value })} />
+                <input className="border rounded-xl p-2" placeholder="City"
+                  value={postForm.city} onChange={e => setPostForm({ ...postForm, city: (e.target as any).value })} />
               </div>
-              <textarea
-                className="border rounded-xl p-2"
-                rows={4}
-                placeholder="Describe the needed service (max 30 words)."
-                value={postForm.text}
-                onChange={(e) => setPostForm({ ...postForm, text: (e.target as any).value })}
-              />
+              <textarea className="border rounded-xl p-2" rows={4} placeholder="Describe the needed service (max 30 words)."
+                value={postForm.text} onChange={e => setPostForm({ ...postForm, text: (e.target as any).value })} />
               <div className="text-xs opacity-70">IBAN: EG550003020730003711457000110</div>
             </div>
             <div className="p-4 border-t text-right">
-              <button className="btn primary" onClick={submitClientPost}>
-                Submit Post
-              </button>
+              <button type="button" className="btn primary" onClick={submitClientPost}>Submit Post</button>
             </div>
           </div>
         </div>
