@@ -14,7 +14,19 @@
     "jspdf-autotable": "^3.8.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+<<<<<<< HEAD
     "recharts": "^2.10.3"
+=======
+    "framer-motion": "^11.0.0",
+    "recharts": "^2.12.7",
+    "lucide-react": "^0.453.0",
+    "jspdf": "^2.5.1",
+    "jspdf-autotable": "^3.8.1",
+    "@emailjs/browser": "^4.4.1",
+    "@vercel/kv": "^1.0.1",
+    "cloudinary": "^1.41.2",
+    "busboy": "^1.6.0"
+>>>>>>> 40b7eac (Initial import from i2u-ready-to-deploy-with-legal)
   },
   "devDependencies": {
     "@types/react": "^18.2.37",
